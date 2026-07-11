@@ -131,8 +131,8 @@ export default function App() {
             </div>
           </div>
 
-          <div id="modelo" className="relative z-10 mt-4 flex-1 md:mt-2">
-            <div className="mx-auto h-[min(62vh,580px)] w-full max-w-6xl md:h-[min(68vh,700px)]">
+          <div id="modelo" className="relative z-10 mt-2 flex-1 w-full md:mt-0">
+            <div className="h-[min(72vh,760px)] w-full">
               <Suspense
                 fallback={
                   <div className="flex h-full items-center justify-center text-sm text-muted">
@@ -140,11 +140,11 @@ export default function App() {
                   </div>
                 }
               >
-                <RobotViewer />
+                <RobotViewer fillScreen />
               </Suspense>
             </div>
             <p className="pb-8 text-center text-[11px] tracking-[0.18em] text-muted uppercase">
-              Arrastra para rotar · scroll para zoom
+              Arrastra para girar · scroll para zoom
             </p>
           </div>
         </section>

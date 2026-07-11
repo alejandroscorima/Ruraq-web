@@ -1,0 +1,14 @@
+services:
+  ruraq-web:
+    build: .
+    container_name: ruraq-web
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - nginx-proxy-manager_default
+
+networks:
+  nginx-proxy-manager_default:
+    external: true
