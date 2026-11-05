@@ -14,19 +14,10 @@ import { useViewerQuality, type ViewerQualitySettings } from '../hooks/useViewer
 
 const ViewerPostEffects = lazy(() => import('./ViewerPostEffects'))
 
-const MODEL_URL = '/models/ruraq.glb?v=stl1'
+const MODEL_URL = '/models/ruraq.glb?v=051126'
 const AUTO_ROTATE_SPEED = 0.42
 const DRAG_SENSITIVITY = 0.007
 const RESUME_DELAY_MS = 2000
-
-const ROBOT_MATERIAL = new THREE.MeshStandardMaterial({
-  color: new THREE.Color('#3a4048'),
-  metalness: 0.68,
-  roughness: 0.22,
-  envMapIntensity: 1.25,
-  flatShading: false,
-  side: THREE.FrontSide,
-})
 
 type TurntableRefs = {
   yaw: React.MutableRefObject<number>
@@ -43,9 +34,14 @@ function useRobotModel() {
     clone.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh
-        mesh.material = ROBOT_MATERIAL
-        if (mesh.geometry && !mesh.geometry.getAttribute('normal')) {
-          mesh.geometry.computeVertexNormals()
+        mesh.castShadow = true
+        mesh.receiveShadow = true
+        // Conservar materiales/colores del GLB (Fusion → Blender).
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+        for (const mat of mats) {
+          if (!mat) continue
+          mat.side = THREE.DoubleSide
+          mat.needsUpdate = true
         }
       }
     })
@@ -66,14 +62,13 @@ function TurntableModel({ refs }: { refs: TurntableRefs }) {
     }
   })
 
+  // Blender exporta +Y Up: sin rotación -90° (esa era para STL/Z-up).
   return (
     <Center>
       <Resize>
         <group scale={2.9}>
           <group ref={turntableRef}>
-            <group rotation={[-Math.PI / 2, 0, 0]}>
-              <primitive object={model} />
-            </group>
+            <primitive object={model} />
           </group>
         </group>
       </Resize>
