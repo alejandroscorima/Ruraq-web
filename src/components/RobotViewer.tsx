@@ -11,10 +11,11 @@ import {
 import * as THREE from 'three'
 import { useViewerActive } from '../hooks/useViewerActive'
 import { useViewerQuality, type ViewerQualitySettings } from '../hooks/useViewerQuality'
+import { ROBOT_MODEL_URL } from '../lib/model'
 
 const ViewerPostEffects = lazy(() => import('./ViewerPostEffects'))
 
-const MODEL_URL = '/models/ruraq.glb?v=051126'
+const MODEL_URL = ROBOT_MODEL_URL
 const AUTO_ROTATE_SPEED = 0.42
 const DRAG_SENSITIVITY = 0.007
 const RESUME_DELAY_MS = 2000
@@ -27,7 +28,8 @@ type TurntableRefs = {
 }
 
 function useRobotModel() {
-  const { scene } = useGLTF(MODEL_URL)
+  // Segundo arg: decoder Draco para el GLB optimizado
+  const { scene } = useGLTF(MODEL_URL, true)
 
   return useMemo(() => {
     const clone = scene.clone(true)
@@ -168,6 +170,8 @@ function PointerTurntable({
 }) {
   const { gl } = useThree()
   const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const start = useRef<{ x: number; y: number } | null>(null)
+  const armed = useRef(false)
 
   const clearResumeTimer = useCallback(() => {
     if (resumeTimer.current) {
@@ -192,26 +196,42 @@ function PointerTurntable({
     const canvas = gl.domElement
 
     const onPointerDown = (event: PointerEvent) => {
-      refs.dragging.current = true
+      start.current = { x: event.clientX, y: event.clientY }
+      armed.current = false
       refs.lastX.current = event.clientX
-      onDraggingChange(true)
-      pauseAutoRotate()
     }
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!refs.dragging.current) return
+      if (!start.current) return
+      const dx = event.clientX - start.current.x
+      const dy = event.clientY - start.current.y
+      // Solo girar si el gesto es claramente horizontal → deja pasar el scroll vertical
+      if (!armed.current) {
+        if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx) * 1.15) {
+          start.current = null
+          return
+        }
+        if (Math.abs(dx) < 8) return
+        armed.current = true
+        refs.dragging.current = true
+        onDraggingChange(true)
+        pauseAutoRotate()
+      }
       const deltaX = event.clientX - refs.lastX.current
       refs.lastX.current = event.clientX
       refs.yaw.current += deltaX * DRAG_SENSITIVITY
     }
 
     const onPointerUp = () => {
+      start.current = null
       if (!refs.dragging.current) return
       refs.dragging.current = false
+      armed.current = false
       onDraggingChange(false)
       scheduleResume()
     }
 
+    canvas.style.touchAction = 'pan-y'
     canvas.addEventListener('pointerdown', onPointerDown)
     canvas.addEventListener('pointermove', onPointerMove)
     canvas.addEventListener('pointerup', onPointerUp)
@@ -339,10 +359,9 @@ export default function RobotViewer({ className = '', fillScreen = true }: Robot
           makeDefault
           enableRotate={false}
           enablePan={false}
-          enableZoom
+          enableZoom={false}
           enableDamping
           dampingFactor={0.06}
-          zoomSpeed={0.65}
           minDistance={1.35}
           maxDistance={5.2}
           target={[0, 0.08, 0]}
@@ -357,4 +376,4 @@ export default function RobotViewer({ className = '', fillScreen = true }: Robot
   )
 }
 
-useGLTF.preload(MODEL_URL)
+useGLTF.preload(MODEL_URL, true)

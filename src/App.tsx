@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 
 const RobotViewer = lazy(() => import('./components/RobotViewer'))
+const MuseumDemo = lazy(() => import('./components/MuseumDemo'))
 
 const capabilities = [
   {
@@ -75,8 +76,15 @@ const contactLinks = [
 ]
 
 export default function App() {
+  const [museumOpen, setMuseumOpen] = useState(false)
+
   return (
     <div className="min-h-svh overflow-x-hidden bg-ink text-fog">
+      {museumOpen && (
+        <Suspense fallback={null}>
+          <MuseumDemo open={museumOpen} onClose={() => setMuseumOpen(false)} />
+        </Suspense>
+      )}
       <header className="fixed inset-x-0 top-0 z-50 border-b border-line/60 bg-ink/85 backdrop-blur-md safe-top">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-5 md:px-8">
           <a href="#top" className="shrink-0 font-display text-[13px] font-semibold tracking-[0.32em]">
@@ -141,30 +149,54 @@ export default function App() {
               >
                 Explorar
               </a>
-              <a
-                href="#experiencia"
-                className="rounded-full border border-line px-5 py-2.5 text-sm font-medium text-fog transition-colors hover:border-muted sm:px-6"
+              <button
+                type="button"
+                onClick={() => setMuseumOpen(true)}
+                className="rounded-full border border-brass/50 px-5 py-2.5 text-sm font-medium text-brass transition-colors hover:border-brass hover:bg-brass/10 sm:px-6"
               >
-                Ver cómo funciona
-              </a>
+                Entrar a la sala
+              </button>
             </div>
           </div>
 
           <div id="modelo" className="relative z-10 mt-1 w-full flex-1 sm:mt-2 md:mt-0">
-            <div className="h-[min(58svh,520px)] w-full touch-pan-y sm:h-[min(64svh,640px)] md:h-[min(72vh,760px)]">
-              <Suspense
-                fallback={
-                  <div className="flex h-full items-center justify-center text-sm text-muted">
-                    Cargando modelo 3D…
-                  </div>
-                }
+            {/* Márgenes laterales: se puede scrollear fuera del canvas */}
+            <div className="mx-auto w-full max-w-6xl px-3 sm:px-5 md:px-8">
+              <div
+                className="relative overflow-hidden rounded-2xl border border-line/80 sm:rounded-3xl"
+                style={{
+                  background: `
+                    radial-gradient(ellipse 65% 55% at 50% 42%, rgba(42,52,64,0.95), transparent 70%),
+                    linear-gradient(165deg, #141a22 0%, #0b0e13 55%, #121820 100%)
+                  `,
+                  boxShadow: 'inset 0 1px 0 rgba(201,168,108,0.08), 0 24px 80px rgba(0,0,0,0.35)',
+                }}
               >
-                <RobotViewer fillScreen />
-              </Suspense>
+                <div className="h-[min(52svh,480px)] w-full sm:h-[min(58svh,580px)] md:h-[min(66vh,700px)]">
+                  <Suspense
+                    fallback={
+                      <div className="flex h-full items-center justify-center text-sm text-muted">
+                        Cargando modelo 3D…
+                      </div>
+                    }
+                  >
+                    <RobotViewer fillScreen />
+                  </Suspense>
+                </div>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-ink/80 to-transparent p-3 sm:p-4">
+                  <button
+                    type="button"
+                    onClick={() => setMuseumOpen(true)}
+                    className="pointer-events-auto rounded-full border border-line/80 bg-ink/70 px-4 py-2 text-[11px] font-medium tracking-wide text-fog backdrop-blur-md transition-colors hover:border-brass hover:text-brass sm:text-xs"
+                  >
+                    Abrir demo a pantalla completa
+                  </button>
+                </div>
+              </div>
             </div>
-            <p className="px-4 pb-6 text-center text-[10px] tracking-[0.14em] text-muted uppercase sm:pb-8 sm:text-[11px] sm:tracking-[0.18em]">
-              <span className="sm:hidden">Desliza para girar · pellizca para zoom</span>
-              <span className="hidden sm:inline">Arrastra para girar · scroll para zoom</span>
+            <p className="px-4 pb-6 pt-4 text-center text-[10px] tracking-[0.14em] text-muted uppercase sm:pb-8 sm:text-[11px] sm:tracking-[0.18em]">
+              <span className="sm:hidden">Desliza horizontal para girar</span>
+              <span className="hidden sm:inline">Arrastra horizontal para girar · scroll de página libre</span>
             </p>
           </div>
         </section>
