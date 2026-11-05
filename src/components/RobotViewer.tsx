@@ -1,5 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
 import {
   Center,
   ContactShadows,
@@ -16,16 +16,7 @@ import { ROBOT_MODEL_URL } from '../lib/model'
 const ViewerPostEffects = lazy(() => import('./ViewerPostEffects'))
 
 const MODEL_URL = ROBOT_MODEL_URL
-const AUTO_ROTATE_SPEED = 0.42
-const DRAG_SENSITIVITY = 0.007
-const RESUME_DELAY_MS = 2000
-
-type TurntableRefs = {
-  yaw: React.MutableRefObject<number>
-  dragging: React.MutableRefObject<boolean>
-  lastX: React.MutableRefObject<number>
-  autoPaused: React.MutableRefObject<boolean>
-}
+const AUTO_ROTATE_SPEED = 0.55
 
 function useRobotModel() {
   const { scene } = useGLTF(MODEL_URL)
@@ -50,27 +41,14 @@ function useRobotModel() {
   }, [scene])
 }
 
-function TurntableModel({ refs }: { refs: TurntableRefs }) {
+function TurntableModel() {
   const model = useRobotModel()
-  const turntableRef = useRef<THREE.Group>(null)
-
-  useFrame((_, delta) => {
-    if (!refs.dragging.current && !refs.autoPaused.current) {
-      refs.yaw.current += delta * AUTO_ROTATE_SPEED
-    }
-    if (turntableRef.current) {
-      turntableRef.current.rotation.y = refs.yaw.current
-    }
-  })
-
-  // Blender exporta +Y Up: sin rotación -90° (esa era para STL/Z-up).
+  // Órbita horizontal + vertical la maneja OrbitControls (cámara).
   return (
     <Center>
       <Resize>
         <group scale={2.9}>
-          <group ref={turntableRef}>
-            <primitive object={model} />
-          </group>
+          <primitive object={model} />
         </group>
       </Resize>
     </Center>
@@ -124,11 +102,9 @@ function MuseumLighting({ flickerLights }: { flickerLights: boolean }) {
 }
 
 function SceneContent({
-  refs,
   quality,
   onReady,
 }: {
-  refs: TurntableRefs
   quality: ViewerQualitySettings
   onReady: () => void
 }) {
@@ -139,7 +115,7 @@ function SceneContent({
   return (
     <>
       <MuseumLighting flickerLights={quality.flickerLights} />
-      <TurntableModel refs={refs} />
+      <TurntableModel />
       <ContactShadows
         position={[0, -1.45, 0]}
         opacity={0.7}
@@ -158,96 +134,6 @@ function SceneContent({
       )}
     </>
   )
-}
-
-function PointerTurntable({
-  refs,
-  onDraggingChange,
-}: {
-  refs: TurntableRefs
-  onDraggingChange: (dragging: boolean) => void
-}) {
-  const { gl } = useThree()
-  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const start = useRef<{ x: number; y: number } | null>(null)
-  const armed = useRef(false)
-
-  const clearResumeTimer = useCallback(() => {
-    if (resumeTimer.current) {
-      clearTimeout(resumeTimer.current)
-      resumeTimer.current = null
-    }
-  }, [])
-
-  const pauseAutoRotate = useCallback(() => {
-    refs.autoPaused.current = true
-    clearResumeTimer()
-  }, [clearResumeTimer, refs])
-
-  const scheduleResume = useCallback(() => {
-    clearResumeTimer()
-    resumeTimer.current = setTimeout(() => {
-      refs.autoPaused.current = false
-    }, RESUME_DELAY_MS)
-  }, [clearResumeTimer, refs])
-
-  useEffect(() => {
-    const canvas = gl.domElement
-
-    const onPointerDown = (event: PointerEvent) => {
-      start.current = { x: event.clientX, y: event.clientY }
-      armed.current = false
-      refs.lastX.current = event.clientX
-    }
-
-    const onPointerMove = (event: PointerEvent) => {
-      if (!start.current) return
-      const dx = event.clientX - start.current.x
-      const dy = event.clientY - start.current.y
-      // Solo girar si el gesto es claramente horizontal → deja pasar el scroll vertical
-      if (!armed.current) {
-        if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx) * 1.15) {
-          start.current = null
-          return
-        }
-        if (Math.abs(dx) < 8) return
-        armed.current = true
-        refs.dragging.current = true
-        onDraggingChange(true)
-        pauseAutoRotate()
-      }
-      const deltaX = event.clientX - refs.lastX.current
-      refs.lastX.current = event.clientX
-      refs.yaw.current += deltaX * DRAG_SENSITIVITY
-    }
-
-    const onPointerUp = () => {
-      start.current = null
-      if (!refs.dragging.current) return
-      refs.dragging.current = false
-      armed.current = false
-      onDraggingChange(false)
-      scheduleResume()
-    }
-
-    canvas.style.touchAction = 'pan-y'
-    canvas.addEventListener('pointerdown', onPointerDown)
-    canvas.addEventListener('pointermove', onPointerMove)
-    canvas.addEventListener('pointerup', onPointerUp)
-    canvas.addEventListener('pointerleave', onPointerUp)
-    canvas.addEventListener('pointercancel', onPointerUp)
-
-    return () => {
-      canvas.removeEventListener('pointerdown', onPointerDown)
-      canvas.removeEventListener('pointermove', onPointerMove)
-      canvas.removeEventListener('pointerup', onPointerUp)
-      canvas.removeEventListener('pointerleave', onPointerUp)
-      canvas.removeEventListener('pointercancel', onPointerUp)
-      clearResumeTimer()
-    }
-  }, [gl, refs, onDraggingChange, pauseAutoRotate, scheduleResume, clearResumeTimer])
-
-  return null
 }
 
 function LoaderFallback() {
@@ -298,17 +184,8 @@ export default function RobotViewer({ className = '', fillScreen = true }: Robot
   const isActive = useViewerActive(containerRef)
   const [loaded, setLoaded] = useState(false)
   const [showPreloader, setShowPreloader] = useState(true)
-  const [dragging, setDragging] = useState(false)
-
-  const refs: TurntableRefs = {
-    yaw: useRef(0),
-    dragging: useRef(false),
-    lastX: useRef(0),
-    autoPaused: useRef(false),
-  }
 
   const handleReady = useCallback(() => setLoaded(true), [])
-  const handleDraggingChange = useCallback((value: boolean) => setDragging(value), [])
 
   return (
     <div
@@ -334,7 +211,7 @@ export default function RobotViewer({ className = '', fillScreen = true }: Robot
       />
 
       <Canvas
-        className={dragging ? 'cursor-grabbing' : 'cursor-grab'}
+        className="cursor-grab active:cursor-grabbing"
         frameloop={isActive ? 'always' : 'never'}
         performance={{ min: 0.6, max: 1, debounce: 200 }}
         camera={{ position: [2.1, 0.85, 2.4], fov: 30 }}
@@ -348,19 +225,23 @@ export default function RobotViewer({ className = '', fillScreen = true }: Robot
         }}
         onCreated={({ gl }) => {
           gl.outputColorSpace = THREE.SRGBColorSpace
+          gl.domElement.style.touchAction = 'none'
         }}
       >
         <Suspense fallback={<LoaderFallback />}>
-          <SceneContent refs={refs} quality={quality} onReady={handleReady} />
+          <SceneContent quality={quality} onReady={handleReady} />
         </Suspense>
-        <PointerTurntable refs={refs} onDraggingChange={handleDraggingChange} />
         <OrbitControls
           makeDefault
-          enableRotate={false}
+          enableRotate
           enablePan={false}
           enableZoom={false}
+          autoRotate={isActive}
+          autoRotateSpeed={AUTO_ROTATE_SPEED}
           enableDamping
           dampingFactor={0.06}
+          minPolarAngle={0.15}
+          maxPolarAngle={Math.PI - 0.15}
           minDistance={1.35}
           maxDistance={5.2}
           target={[0, 0.08, 0]}

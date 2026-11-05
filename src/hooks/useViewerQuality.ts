@@ -44,13 +44,13 @@ const QUALITY_SETTINGS: Record<ViewerQuality, ViewerQualitySettings> = {
     tier: 'high',
     maxDpr: 1.75,
     antialias: true,
-    bloom: true,
+    bloom: false,
     environment: true,
     environmentResolution: 512,
     contactShadowResolution: 384,
     contactShadowBlur: 2.2,
     flickerLights: true,
-    effectMultisampling: 2,
+    effectMultisampling: 0,
   },
 }
 

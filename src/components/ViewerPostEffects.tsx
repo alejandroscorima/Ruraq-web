@@ -1,19 +1,12 @@
-import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing'
-
+/**
+ * Efectos post (bloom/vignette). Desactivados de forma segura:
+ * el paquete @react-three/postprocessing a veces rompe el build Docker/Vite.
+ * Cuando el entorno sea estable se puede reactivar el EffectComposer.
+ */
 type ViewerPostEffectsProps = {
   multisampling: number
 }
 
-export default function ViewerPostEffects({ multisampling }: ViewerPostEffectsProps) {
-  return (
-    <EffectComposer multisampling={multisampling}>
-      <Bloom
-        luminanceThreshold={0.78}
-        luminanceSmoothing={0.35}
-        intensity={0.38}
-        mipmapBlur
-      />
-      <Vignette eskil={false} offset={0.14} darkness={0.62} />
-    </EffectComposer>
-  )
+export default function ViewerPostEffects(_props: ViewerPostEffectsProps) {
+  return null
 }

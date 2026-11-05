@@ -195,8 +195,8 @@ export default function App() {
               </div>
             </div>
             <p className="px-4 pb-6 pt-4 text-center text-[10px] tracking-[0.14em] text-muted uppercase sm:pb-8 sm:text-[11px] sm:tracking-[0.18em]">
-              <span className="sm:hidden">Desliza horizontal para girar</span>
-              <span className="hidden sm:inline">Arrastra horizontal para girar · scroll de página libre</span>
+              <span className="sm:hidden">Arrastra para orbitar</span>
+              <span className="hidden sm:inline">Arrastra para orbitar en todas direcciones</span>
             </p>
           </div>
         </section>

@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Center, ContactShadows, Resize, useGLTF } from '@react-three/drei'
+import { Center, Resize, Text, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { ROBOT_MODEL_URL } from '../lib/model'
 import VirtualJoystick from './VirtualJoystick'
@@ -12,10 +12,23 @@ type MuseumDemoProps = {
   onClose: () => void
 }
 
-const ROOM = { w: 18, d: 14, h: 4.2 }
-const SPEED = 3.2
-const LOOK_SENS = 0.0022
-const BOUNDS = { x: ROOM.w / 2 - 0.7, z: ROOM.d / 2 - 0.7 }
+const ROOM = { w: 22, d: 16, h: 4.6 }
+const MOVE_SPEED = 2.8
+const TURN_SPEED = 1.9
+const BOUNDS = { x: ROOM.w / 2 - 1.1, z: ROOM.d / 2 - 1.1 }
+
+/** Obras estilizadas (no reproducciones): color + título para ambientar la sala. */
+const ARTWORKS = [
+  { title: 'La Gioconda', artist: 'Leonardo', color: '#6b4e2e', wall: 'n' as const, u: -6 },
+  { title: 'La noche estrellada', artist: 'Van Gogh', color: '#1e3a6e', wall: 'n' as const, u: 0 },
+  { title: 'El grito', artist: 'Munch', color: '#7a3b2e', wall: 'n' as const, u: 6 },
+  { title: 'Guernica', artist: 'Picasso', color: '#3a3a3a', wall: 's' as const, u: -4 },
+  { title: 'Las meninas', artist: 'Velázquez', color: '#4a5540', wall: 's' as const, u: 4 },
+  { title: 'La gran ola', artist: 'Hokusai', color: '#2a4a6a', wall: 'w' as const, u: -3 },
+  { title: 'Nacimiento de Venus', artist: 'Botticelli', color: '#8a6a50', wall: 'w' as const, u: 3 },
+  { title: 'Persistencia memoria', artist: 'Dalí', color: '#5a6a3a', wall: 'e' as const, u: -3 },
+  { title: 'American Gothic', artist: 'Wood', color: '#4a3a2a', wall: 'e' as const, u: 3 },
+]
 
 function useRobot() {
   const { scene } = useGLTF(ROBOT_MODEL_URL)
@@ -38,25 +51,72 @@ function useRobot() {
   }, [scene])
 }
 
-function GalleryRoom() {
-  const wall = '#2a3038'
-  const trim = '#c9a86c'
-  const floor = '#1a1e24'
-  const ceiling = '#12161c'
+function Painting({
+  title,
+  artist,
+  color,
+  position,
+  rotation,
+}: {
+  title: string
+  artist: string
+  color: string
+  position: [number, number, number]
+  rotation: [number, number, number]
+}) {
+  return (
+    <group position={position} rotation={rotation}>
+      <mesh position={[0, 0, -0.03]} castShadow>
+        <boxGeometry args={[2.4, 1.7, 0.08]} />
+        <meshStandardMaterial color="#1a1510" metalness={0.35} roughness={0.45} />
+      </mesh>
+      <mesh position={[0, 0.05, 0.01]}>
+        <planeGeometry args={[2.05, 1.35]} />
+        <meshStandardMaterial color={color} roughness={0.7} />
+      </mesh>
+      {/* Marco interior brass */}
+      <mesh position={[0, 0.05, 0]}>
+        <planeGeometry args={[2.15, 1.45]} />
+        <meshStandardMaterial color="#c9a86c" metalness={0.5} roughness={0.4} transparent opacity={0.25} />
+      </mesh>
+      <Text
+        position={[0, -1.05, 0.05]}
+        fontSize={0.11}
+        color="#ece9e2"
+        anchorX="center"
+        anchorY="middle"
+        maxWidth={2.2}
+      >
+        {`${title} · ${artist}`}
+      </Text>
+    </group>
+  )
+}
 
+function artPose(wall: 'n' | 's' | 'e' | 'w', u: number): { pos: [number, number, number]; rot: [number, number, number] } {
+  const y = 2.25
+  if (wall === 'n') return { pos: [u, y, -ROOM.d / 2 + 0.08], rot: [0, 0, 0] }
+  if (wall === 's') return { pos: [u, y, ROOM.d / 2 - 0.08], rot: [0, Math.PI, 0] }
+  if (wall === 'w') return { pos: [-ROOM.w / 2 + 0.08, y, u], rot: [0, Math.PI / 2, 0] }
+  return { pos: [ROOM.w / 2 - 0.08, y, u], rot: [0, -Math.PI / 2, 0] }
+}
+
+function GalleryRoom() {
   return (
     <group>
-      {/* Floor */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, 0, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[ROOM.w, ROOM.d]} />
-        <meshStandardMaterial color={floor} roughness={0.85} metalness={0.05} />
+        <meshStandardMaterial color="#1c2128" roughness={0.88} />
       </mesh>
-      {/* Ceiling */}
+      {/* Alfombra central */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
+        <planeGeometry args={[6, 8]} />
+        <meshStandardMaterial color="#3a2a22" roughness={0.95} />
+      </mesh>
       <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, ROOM.h, 0]}>
         <planeGeometry args={[ROOM.w, ROOM.d]} />
-        <meshStandardMaterial color={ceiling} roughness={1} />
+        <meshStandardMaterial color="#10141a" roughness={1} />
       </mesh>
-      {/* Walls */}
       {[
         { pos: [0, ROOM.h / 2, -ROOM.d / 2] as const, rot: [0, 0, 0] as const, size: [ROOM.w, ROOM.h] as const },
         { pos: [0, ROOM.h / 2, ROOM.d / 2] as const, rot: [0, Math.PI, 0] as const, size: [ROOM.w, ROOM.h] as const },
@@ -65,139 +125,124 @@ function GalleryRoom() {
       ].map((w, i) => (
         <mesh key={i} position={[...w.pos]} rotation={[...w.rot]} receiveShadow>
           <planeGeometry args={w.size} />
-          <meshStandardMaterial color={wall} roughness={0.9} />
+          <meshStandardMaterial color="#2e343c" roughness={0.92} />
         </mesh>
       ))}
 
-      {/* Brass baseboard strip */}
+      {/* Bancas / pedestales decorativos (obstáculos blandos visuales) */}
       {[
-        { pos: [0, 0.08, -ROOM.d / 2 + 0.02], size: [ROOM.w, 0.16] as const, rot: [0, 0, 0] as const },
-        { pos: [0, 0.08, ROOM.d / 2 - 0.02], size: [ROOM.w, 0.16] as const, rot: [0, Math.PI, 0] as const },
-      ].map((b, i) => (
-        <mesh key={`trim-${i}`} position={b.pos as [number, number, number]} rotation={b.rot}>
-          <planeGeometry args={b.size} />
-          <meshStandardMaterial color={trim} metalness={0.55} roughness={0.35} />
-        </mesh>
-      ))}
-
-      {/* “Paintings” */}
-      {[
-        { x: -4.5, z: -ROOM.d / 2 + 0.06, color: '#5a4632' },
-        { x: 0, z: -ROOM.d / 2 + 0.06, color: '#3d4a5c' },
-        { x: 4.5, z: -ROOM.d / 2 + 0.06, color: '#4a3a42' },
-        { x: -ROOM.w / 2 + 0.06, z: -2.5, color: '#46524a', rot: Math.PI / 2 },
-        { x: ROOM.w / 2 - 0.06, z: 2.2, color: '#524640', rot: -Math.PI / 2 },
+        [-5, 0.35, 4],
+        [5, 0.35, 4],
+        [-5, 0.35, -5],
+        [5, 0.35, -5],
       ].map((p, i) => (
-        <group key={`art-${i}`} position={[p.x, 2.1, p.z]} rotation={[0, p.rot ?? 0, 0]}>
-          <mesh position={[0, 0, -0.02]}>
-            <boxGeometry args={[2.2, 1.5, 0.06]} />
-            <meshStandardMaterial color="#1c1814" metalness={0.3} roughness={0.5} />
-          </mesh>
-          <mesh>
-            <planeGeometry args={[1.9, 1.25]} />
-            <meshStandardMaterial color={p.color} roughness={0.75} />
-          </mesh>
-        </group>
+        <mesh key={`bench-${i}`} position={p as [number, number, number]} castShadow receiveShadow>
+          <boxGeometry args={[1.6, 0.7, 0.55]} />
+          <meshStandardMaterial color="#2a241c" roughness={0.7} />
+        </mesh>
       ))}
 
-      {/* Pedestal */}
-      <mesh position={[0, 0.35, -1.2]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.85, 0.95, 0.7, 48]} />
-        <meshStandardMaterial color="#d8d2c6" roughness={0.45} metalness={0.1} />
-      </mesh>
+      {ARTWORKS.map((a) => {
+        const pose = artPose(a.wall, a.u)
+        return (
+          <Painting
+            key={a.title}
+            title={a.title}
+            artist={a.artist}
+            color={a.color}
+            position={pose.pos}
+            rotation={pose.rot}
+          />
+        )
+      })}
+
+      <Text position={[0, 3.6, -ROOM.d / 2 + 0.12]} fontSize={0.28} color="#c9a86c" anchorX="center">
+        Sala RURAQ · Mediación cultural
+      </Text>
     </group>
   )
 }
 
-function RobotOnPedestal() {
+function RobotPlayer({
+  keys,
+  stick,
+}: {
+  keys: React.MutableRefObject<Record<string, boolean>>
+  stick: React.MutableRefObject<Stick>
+}) {
   const model = useRobot()
+  const group = useRef<THREE.Group>(null)
+  const yaw = useRef(0)
+  const pos = useRef(new THREE.Vector3(0, 0, 4.5))
+  const { camera } = useThree()
+  const camTarget = useRef(new THREE.Vector3())
+  const camPos = useRef(new THREE.Vector3(0, 2.2, 8))
+
+  useFrame((_, delta) => {
+    const k = keys.current
+    // A/D o stick.x → girar robot; W/S o stick.y → avanzar/retroceder
+    const turn =
+      ((k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0) || 0) + stick.current.x
+    const drive =
+      ((k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0) || 0) + stick.current.y
+
+    yaw.current -= turn * TURN_SPEED * delta
+
+    const forward = new THREE.Vector3(-Math.sin(yaw.current), 0, -Math.cos(yaw.current))
+    pos.current.addScaledVector(forward, drive * MOVE_SPEED * delta)
+    pos.current.x = THREE.MathUtils.clamp(pos.current.x, -BOUNDS.x, BOUNDS.x)
+    pos.current.z = THREE.MathUtils.clamp(pos.current.z, -BOUNDS.z, BOUNDS.z)
+
+    if (group.current) {
+      group.current.position.copy(pos.current)
+      group.current.rotation.y = yaw.current
+    }
+
+    // Cámara tercera persona detrás del robot
+    const back = new THREE.Vector3(Math.sin(yaw.current), 0, Math.cos(yaw.current))
+    const desired = pos.current.clone().add(back.multiplyScalar(4.2)).add(new THREE.Vector3(0, 2.1, 0))
+    camPos.current.lerp(desired, 1 - Math.exp(-4 * delta))
+    camTarget.current.lerp(
+      pos.current.clone().add(new THREE.Vector3(0, 1.1, 0)).add(forward.clone().multiplyScalar(1.2)),
+      1 - Math.exp(-5 * delta),
+    )
+    camera.position.copy(camPos.current)
+    camera.lookAt(camTarget.current)
+  })
+
   return (
-    <group position={[0, 0.72, -1.2]}>
+    <group ref={group} position={[0, 0, 4.5]}>
       <Center>
         <Resize>
-          <group scale={2.15}>
+          <group scale={1.35}>
             <primitive object={model} />
           </group>
         </Resize>
       </Center>
-      <ContactShadows position={[0, -0.01, 0]} opacity={0.55} scale={6} blur={2.2} far={3} />
     </group>
   )
-}
-
-function WalkController({
-  keys,
-  stick,
-  lookDelta,
-}: {
-  keys: React.MutableRefObject<Record<string, boolean>>
-  stick: React.MutableRefObject<Stick>
-  lookDelta: React.MutableRefObject<{ dx: number; dy: number }>
-}) {
-  const { camera } = useThree()
-  const yaw = useRef(0)
-  const pitch = useRef(-0.12)
-  const pos = useRef(new THREE.Vector3(0, 1.55, 5.5))
-  const forward = useRef(new THREE.Vector3())
-  const right = useRef(new THREE.Vector3())
-
-  useFrame((_, delta) => {
-    yaw.current -= lookDelta.current.dx * LOOK_SENS
-    pitch.current -= lookDelta.current.dy * LOOK_SENS
-    pitch.current = THREE.MathUtils.clamp(pitch.current, -1.2, 1.2)
-    lookDelta.current.dx = 0
-    lookDelta.current.dy = 0
-
-    const k = keys.current
-    let mx = (k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0)
-    let mz = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0)
-    mx += stick.current.x
-    mz += stick.current.y
-
-    forward.current.set(-Math.sin(yaw.current), 0, -Math.cos(yaw.current))
-    right.current.set(Math.cos(yaw.current), 0, -Math.sin(yaw.current))
-
-    const move = new THREE.Vector3()
-    move.addScaledVector(forward.current, mz)
-    move.addScaledVector(right.current, mx)
-    if (move.lengthSq() > 1) move.normalize()
-    pos.current.addScaledVector(move, SPEED * delta)
-    pos.current.x = THREE.MathUtils.clamp(pos.current.x, -BOUNDS.x, BOUNDS.x)
-    pos.current.z = THREE.MathUtils.clamp(pos.current.z, -BOUNDS.z, BOUNDS.z)
-    pos.current.y = 1.55
-
-    camera.position.copy(pos.current)
-    camera.rotation.order = 'YXZ'
-    camera.rotation.y = yaw.current
-    camera.rotation.x = pitch.current
-  })
-
-  return null
 }
 
 function Scene({
   keys,
   stick,
-  lookDelta,
 }: {
   keys: React.MutableRefObject<Record<string, boolean>>
   stick: React.MutableRefObject<Stick>
-  lookDelta: React.MutableRefObject<{ dx: number; dy: number }>
 }) {
   return (
     <>
-      <color attach="background" args={['#0c1016']} />
-      <fog attach="fog" args={['#0c1016', 10, 26]} />
-      <ambientLight intensity={0.35} />
-      <directionalLight position={[4, 8, 2]} intensity={0.55} castShadow />
-      <spotLight position={[0, 3.8, -1.2]} angle={0.55} penumbra={0.6} intensity={18} color="#fff4e4" castShadow />
-      <spotLight position={[-5, 3.6, -5]} angle={0.4} penumbra={0.7} intensity={6} color="#a8b8d8" />
-      <spotLight position={[5, 3.6, 3]} angle={0.4} penumbra={0.7} intensity={5} color="#d8c8a8" />
+      <color attach="background" args={['#0a0e14']} />
+      <fog attach="fog" args={['#0a0e14', 12, 32]} />
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[6, 10, 4]} intensity={0.65} castShadow />
+      <spotLight position={[0, 4.2, 0]} angle={0.85} penumbra={0.5} intensity={12} color="#fff6e8" />
+      <spotLight position={[-7, 3.8, -6]} angle={0.45} penumbra={0.7} intensity={7} color="#a8b8d8" />
+      <spotLight position={[7, 3.8, 5]} angle={0.45} penumbra={0.7} intensity={6} color="#d8c8a8" />
       <GalleryRoom />
       <Suspense fallback={null}>
-        <RobotOnPedestal />
+        <RobotPlayer keys={keys} stick={stick} />
       </Suspense>
-      <WalkController keys={keys} stick={stick} lookDelta={lookDelta} />
     </>
   )
 }
@@ -205,12 +250,8 @@ function Scene({
 export default function MuseumDemo({ open, onClose }: MuseumDemoProps) {
   const keys = useRef<Record<string, boolean>>({})
   const stick = useRef<Stick>({ x: 0, y: 0 })
-  const lookDelta = useRef({ dx: 0, dy: 0 })
   const [isMobile, setIsMobile] = useState(false)
   const [hint, setHint] = useState(true)
-  const looking = useRef(false)
-  const lastLook = useRef({ x: 0, y: 0 })
-  const stageRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px), (pointer: coarse)')
@@ -227,10 +268,14 @@ export default function MuseumDemo({ open, onClose }: MuseumDemoProps) {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Escape') onClose()
       keys.current[e.code] = e.type === 'keydown'
+      // Evitar scroll con flechas/espacio
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+        e.preventDefault()
+      }
     }
     window.addEventListener('keydown', onKey)
     window.addEventListener('keyup', onKey)
-    const t = window.setTimeout(() => setHint(false), 5000)
+    const t = window.setTimeout(() => setHint(false), 6000)
     return () => {
       document.body.style.overflow = prev
       window.removeEventListener('keydown', onKey)
@@ -244,47 +289,13 @@ export default function MuseumDemo({ open, onClose }: MuseumDemoProps) {
     stick.current = s
   }, [])
 
-  useEffect(() => {
-    if (!open) return
-    const el = stageRef.current
-    if (!el) return
-
-    const onDown = (e: PointerEvent) => {
-      // En móvil: mirar con el dedo en la mitad derecha (fuera del joystick)
-      if (isMobile && e.clientX < window.innerWidth * 0.42) return
-      looking.current = true
-      lastLook.current = { x: e.clientX, y: e.clientY }
-      el.setPointerCapture(e.pointerId)
-    }
-    const onMove = (e: PointerEvent) => {
-      if (!looking.current) return
-      lookDelta.current.dx += e.clientX - lastLook.current.x
-      lookDelta.current.dy += e.clientY - lastLook.current.y
-      lastLook.current = { x: e.clientX, y: e.clientY }
-    }
-    const onUp = () => {
-      looking.current = false
-    }
-
-    el.addEventListener('pointerdown', onDown)
-    el.addEventListener('pointermove', onMove)
-    el.addEventListener('pointerup', onUp)
-    el.addEventListener('pointercancel', onUp)
-    return () => {
-      el.removeEventListener('pointerdown', onDown)
-      el.removeEventListener('pointermove', onMove)
-      el.removeEventListener('pointerup', onUp)
-      el.removeEventListener('pointercancel', onUp)
-    }
-  }, [open, isMobile])
-
   if (!open) return null
 
   return (
     <div className="fixed inset-0 z-[80] flex flex-col bg-ink">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-3 safe-top sm:p-4">
         <div className="pointer-events-auto rounded-full border border-line/80 bg-ink/70 px-3 py-1.5 text-[10px] tracking-[0.18em] text-muted uppercase backdrop-blur-md sm:text-[11px]">
-          Demo sala · RURAQ
+          Demo museo · conduce a RURAQ
         </div>
         <button
           type="button"
@@ -297,22 +308,22 @@ export default function MuseumDemo({ open, onClose }: MuseumDemoProps) {
 
       {hint && (
         <div className="pointer-events-none absolute inset-x-0 top-16 z-20 flex justify-center px-4 sm:top-20">
-          <p className="max-w-md rounded-2xl border border-line/70 bg-ink/75 px-4 py-3 text-center text-[12px] leading-relaxed text-fog/90 backdrop-blur-md sm:text-sm">
+          <p className="max-w-lg rounded-2xl border border-line/70 bg-ink/75 px-4 py-3 text-center text-[12px] leading-relaxed text-fog/90 backdrop-blur-md sm:text-sm">
             {isMobile
-              ? 'Joystick izquierdo para caminar · desliza a la derecha para mirar'
-              : 'WASD o flechas para caminar · arrastra para mirar · Esc para salir'}
+              ? 'Joystick: arriba/abajo avanza · izquierda/derecha gira al robot'
+              : 'W/S avanzar-retroceder · A/D girar al robot · Esc salir'}
           </p>
         </div>
       )}
 
-      <div ref={stageRef} className="relative min-h-0 flex-1 touch-none">
+      <div className="relative min-h-0 flex-1">
         <Canvas
-          camera={{ fov: 60, near: 0.1, far: 60, position: [0, 1.55, 5.5] }}
+          camera={{ fov: 55, near: 0.1, far: 70, position: [0, 2.2, 8] }}
           dpr={[1, 1.5]}
           gl={{ antialias: true, powerPreference: 'high-performance' }}
           shadows
         >
-          <Scene keys={keys} stick={stick} lookDelta={lookDelta} />
+          <Scene keys={keys} stick={stick} />
         </Canvas>
 
         {isMobile && (
@@ -324,4 +335,3 @@ export default function MuseumDemo({ open, onClose }: MuseumDemoProps) {
     </div>
   )
 }
-

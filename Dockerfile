@@ -3,7 +3,8 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+# npm install (no ci): evita fallos si el lockfile queda ligeramente desfasado en el servidor
+RUN npm install
 
 COPY . .
 RUN npm run build
