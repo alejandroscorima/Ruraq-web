@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Center, Resize, Text, useGLTF } from '@react-three/drei'
+import { Center, Resize, Text, useGLTF, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 import { ROBOT_MODEL_URL } from '../lib/model'
 import VirtualJoystick from './VirtualJoystick'
@@ -17,18 +17,75 @@ const MOVE_SPEED = 2.8
 const TURN_SPEED = 1.9
 const BOUNDS = { x: ROOM.w / 2 - 1.1, z: ROOM.d / 2 - 1.1 }
 
-/** Obras estilizadas (no reproducciones): color + título para ambientar la sala. */
+/** Obras de dominio público (Wikimedia Commons), empaquetadas en /public/museum. */
 const ARTWORKS = [
-  { title: 'La Gioconda', artist: 'Leonardo', color: '#6b4e2e', wall: 'n' as const, u: -6 },
-  { title: 'La noche estrellada', artist: 'Van Gogh', color: '#1e3a6e', wall: 'n' as const, u: 0 },
-  { title: 'El grito', artist: 'Munch', color: '#7a3b2e', wall: 'n' as const, u: 6 },
-  { title: 'Guernica', artist: 'Picasso', color: '#3a3a3a', wall: 's' as const, u: -4 },
-  { title: 'Las meninas', artist: 'Velázquez', color: '#4a5540', wall: 's' as const, u: 4 },
-  { title: 'La gran ola', artist: 'Hokusai', color: '#2a4a6a', wall: 'w' as const, u: -3 },
-  { title: 'Nacimiento de Venus', artist: 'Botticelli', color: '#8a6a50', wall: 'w' as const, u: 3 },
-  { title: 'Persistencia memoria', artist: 'Dalí', color: '#5a6a3a', wall: 'e' as const, u: -3 },
-  { title: 'American Gothic', artist: 'Wood', color: '#4a3a2a', wall: 'e' as const, u: 3 },
+  {
+    title: 'La Gioconda',
+    artist: 'Leonardo da Vinci',
+    src: '/museum/mona-lisa.jpg',
+    wall: 'n' as const,
+    u: -6,
+  },
+  {
+    title: 'La noche estrellada',
+    artist: 'Vincent van Gogh',
+    src: '/museum/starry-night.jpg',
+    wall: 'n' as const,
+    u: 0,
+  },
+  {
+    title: 'El grito',
+    artist: 'Edvard Munch',
+    src: '/museum/the-scream.jpg',
+    wall: 'n' as const,
+    u: 6,
+  },
+  {
+    title: 'Las meninas',
+    artist: 'Diego Velázquez',
+    src: '/museum/las-meninas.jpg',
+    wall: 's' as const,
+    u: -4,
+  },
+  {
+    title: 'Los girasoles',
+    artist: 'Vincent van Gogh',
+    src: '/museum/sunflowers.jpg',
+    wall: 's' as const,
+    u: 4,
+  },
+  {
+    title: 'La gran ola de Kanagawa',
+    artist: 'Hokusai',
+    src: '/museum/great-wave.jpg',
+    wall: 'w' as const,
+    u: -3,
+  },
+  {
+    title: 'El nacimiento de Venus',
+    artist: 'Sandro Botticelli',
+    src: '/museum/birth-venus.jpg',
+    wall: 'w' as const,
+    u: 3,
+  },
+  {
+    title: 'La joven de la perla',
+    artist: 'Johannes Vermeer',
+    src: '/museum/pearl-earring.jpg',
+    wall: 'e' as const,
+    u: -3,
+  },
+  {
+    title: 'Caminante sobre el mar de niebla',
+    artist: 'C. D. Friedrich',
+    src: '/museum/wanderer.jpg',
+    wall: 'e' as const,
+    u: 3,
+  },
 ]
+
+useGLTF.preload(ROBOT_MODEL_URL)
+ARTWORKS.forEach((a) => useTexture.preload(a.src))
 
 function useRobot() {
   const { scene } = useGLTF(ROBOT_MODEL_URL)
@@ -54,38 +111,52 @@ function useRobot() {
 function Painting({
   title,
   artist,
-  color,
+  src,
   position,
   rotation,
 }: {
   title: string
   artist: string
-  color: string
+  src: string
   position: [number, number, number]
   rotation: [number, number, number]
 }) {
+  const texture = useTexture(src)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 8
+
+  const maxH = 1.55
+  const maxW = 2.35
+  const img = texture.image as { width: number; height: number } | undefined
+  const aspect = img?.width && img?.height ? img.width / img.height : 1
+  let h = maxH
+  let w = h * aspect
+  if (w > maxW) {
+    w = maxW
+    h = w / aspect
+  }
+
   return (
     <group position={position} rotation={rotation}>
-      <mesh position={[0, 0, -0.03]} castShadow>
-        <boxGeometry args={[2.4, 1.7, 0.08]} />
-        <meshStandardMaterial color="#1a1510" metalness={0.35} roughness={0.45} />
+      <mesh position={[0, 0, -0.04]} castShadow>
+        <boxGeometry args={[w + 0.28, h + 0.28, 0.09]} />
+        <meshStandardMaterial color="#5a4630" metalness={0.35} roughness={0.45} />
       </mesh>
-      <mesh position={[0, 0.05, 0.01]}>
-        <planeGeometry args={[2.05, 1.35]} />
-        <meshStandardMaterial color={color} roughness={0.7} />
+      <mesh position={[0, 0, -0.01]}>
+        <boxGeometry args={[w + 0.14, h + 0.14, 0.04]} />
+        <meshStandardMaterial color="#d4b87a" metalness={0.55} roughness={0.35} />
       </mesh>
-      {/* Marco interior brass */}
-      <mesh position={[0, 0.05, 0]}>
-        <planeGeometry args={[2.15, 1.45]} />
-        <meshStandardMaterial color="#c9a86c" metalness={0.5} roughness={0.4} transparent opacity={0.25} />
+      <mesh position={[0, 0, 0.03]}>
+        <planeGeometry args={[w, h]} />
+        <meshStandardMaterial map={texture} roughness={0.85} metalness={0.05} />
       </mesh>
       <Text
-        position={[0, -1.05, 0.05]}
-        fontSize={0.11}
-        color="#ece9e2"
+        position={[0, -(h / 2 + 0.28), 0.05]}
+        fontSize={0.1}
+        color="#3a342c"
         anchorX="center"
         anchorY="middle"
-        maxWidth={2.2}
+        maxWidth={Math.max(w, 2)}
       >
         {`${title} · ${artist}`}
       </Text>
@@ -94,11 +165,11 @@ function Painting({
 }
 
 function artPose(wall: 'n' | 's' | 'e' | 'w', u: number): { pos: [number, number, number]; rot: [number, number, number] } {
-  const y = 2.25
-  if (wall === 'n') return { pos: [u, y, -ROOM.d / 2 + 0.08], rot: [0, 0, 0] }
-  if (wall === 's') return { pos: [u, y, ROOM.d / 2 - 0.08], rot: [0, Math.PI, 0] }
-  if (wall === 'w') return { pos: [-ROOM.w / 2 + 0.08, y, u], rot: [0, Math.PI / 2, 0] }
-  return { pos: [ROOM.w / 2 - 0.08, y, u], rot: [0, -Math.PI / 2, 0] }
+  const y = 2.15
+  if (wall === 'n') return { pos: [u, y, -ROOM.d / 2 + 0.1], rot: [0, 0, 0] }
+  if (wall === 's') return { pos: [u, y, ROOM.d / 2 - 0.1], rot: [0, Math.PI, 0] }
+  if (wall === 'w') return { pos: [-ROOM.w / 2 + 0.1, y, u], rot: [0, Math.PI / 2, 0] }
+  return { pos: [ROOM.w / 2 - 0.1, y, u], rot: [0, -Math.PI / 2, 0] }
 }
 
 function GalleryRoom() {
@@ -106,16 +177,15 @@ function GalleryRoom() {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[ROOM.w, ROOM.d]} />
-        <meshStandardMaterial color="#1c2128" roughness={0.88} />
+        <meshStandardMaterial color="#d8d2c6" roughness={0.92} />
       </mesh>
-      {/* Alfombra central */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
-        <planeGeometry args={[6, 8]} />
-        <meshStandardMaterial color="#3a2a22" roughness={0.95} />
+        <planeGeometry args={[7, 9]} />
+        <meshStandardMaterial color="#8b5a3c" roughness={0.95} />
       </mesh>
       <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, ROOM.h, 0]}>
         <planeGeometry args={[ROOM.w, ROOM.d]} />
-        <meshStandardMaterial color="#10141a" roughness={1} />
+        <meshStandardMaterial color="#f2eee6" roughness={1} />
       </mesh>
       {[
         { pos: [0, ROOM.h / 2, -ROOM.d / 2] as const, rot: [0, 0, 0] as const, size: [ROOM.w, ROOM.h] as const },
@@ -125,11 +195,10 @@ function GalleryRoom() {
       ].map((w, i) => (
         <mesh key={i} position={[...w.pos]} rotation={[...w.rot]} receiveShadow>
           <planeGeometry args={w.size} />
-          <meshStandardMaterial color="#2e343c" roughness={0.92} />
+          <meshStandardMaterial color="#f4f0e8" roughness={0.9} />
         </mesh>
       ))}
 
-      {/* Bancas / pedestales decorativos (obstáculos blandos visuales) */}
       {[
         [-5, 0.35, 4],
         [5, 0.35, 4],
@@ -138,25 +207,26 @@ function GalleryRoom() {
       ].map((p, i) => (
         <mesh key={`bench-${i}`} position={p as [number, number, number]} castShadow receiveShadow>
           <boxGeometry args={[1.6, 0.7, 0.55]} />
-          <meshStandardMaterial color="#2a241c" roughness={0.7} />
+          <meshStandardMaterial color="#6b5340" roughness={0.7} />
         </mesh>
       ))}
 
       {ARTWORKS.map((a) => {
         const pose = artPose(a.wall, a.u)
         return (
-          <Painting
-            key={a.title}
-            title={a.title}
-            artist={a.artist}
-            color={a.color}
-            position={pose.pos}
-            rotation={pose.rot}
-          />
+          <Suspense key={a.title} fallback={null}>
+            <Painting
+              title={a.title}
+              artist={a.artist}
+              src={a.src}
+              position={pose.pos}
+              rotation={pose.rot}
+            />
+          </Suspense>
         )
       })}
 
-      <Text position={[0, 3.6, -ROOM.d / 2 + 0.12]} fontSize={0.28} color="#c9a86c" anchorX="center">
+      <Text position={[0, 3.6, -ROOM.d / 2 + 0.12]} fontSize={0.28} color="#8a6d3b" anchorX="center">
         Sala RURAQ · Mediación cultural
       </Text>
     </group>
@@ -180,7 +250,6 @@ function RobotPlayer({
 
   useFrame((_, delta) => {
     const k = keys.current
-    // A/D o stick.x → girar robot; W/S o stick.y → avanzar/retroceder
     const turn =
       ((k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0) || 0) + stick.current.x
     const drive =
@@ -198,7 +267,6 @@ function RobotPlayer({
       group.current.rotation.y = yaw.current
     }
 
-    // Cámara tercera persona detrás del robot
     const back = new THREE.Vector3(Math.sin(yaw.current), 0, Math.cos(yaw.current))
     const desired = pos.current.clone().add(back.multiplyScalar(4.2)).add(new THREE.Vector3(0, 2.1, 0))
     camPos.current.lerp(desired, 1 - Math.exp(-4 * delta))
@@ -212,7 +280,8 @@ function RobotPlayer({
 
   return (
     <group ref={group} position={[0, 0, 4.5]}>
-      <Center>
+      {/* bottom: asienta la base del modelo sobre el piso (y=0) */}
+      <Center bottom>
         <Resize>
           <group scale={1.35}>
             <primitive object={model} />
@@ -232,13 +301,17 @@ function Scene({
 }) {
   return (
     <>
-      <color attach="background" args={['#0a0e14']} />
-      <fog attach="fog" args={['#0a0e14', 12, 32]} />
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[6, 10, 4]} intensity={0.65} castShadow />
-      <spotLight position={[0, 4.2, 0]} angle={0.85} penumbra={0.5} intensity={12} color="#fff6e8" />
-      <spotLight position={[-7, 3.8, -6]} angle={0.45} penumbra={0.7} intensity={7} color="#a8b8d8" />
-      <spotLight position={[7, 3.8, 5]} angle={0.45} penumbra={0.7} intensity={6} color="#d8c8a8" />
+      <color attach="background" args={['#e8e2d6']} />
+      <fog attach="fog" args={['#e8e2d6', 22, 48]} />
+      <ambientLight intensity={0.95} />
+      <hemisphereLight args={['#fff8ee', '#c8c0b4', 0.55]} />
+      <directionalLight position={[6, 10, 4]} intensity={1.15} castShadow shadow-mapSize={[1024, 1024]} />
+      <spotLight position={[0, 4.2, 0]} angle={1.05} penumbra={0.55} intensity={18} color="#fff8ee" />
+      <spotLight position={[-7, 3.8, -6]} angle={0.55} penumbra={0.65} intensity={10} color="#fff5e0" />
+      <spotLight position={[7, 3.8, 5]} angle={0.55} penumbra={0.65} intensity={9} color="#fff0d8" />
+      <pointLight position={[-6, 3.2, -7.5]} intensity={6} color="#ffe9c8" distance={10} />
+      <pointLight position={[0, 3.2, -7.5]} intensity={6} color="#ffe9c8" distance={10} />
+      <pointLight position={[6, 3.2, -7.5]} intensity={6} color="#ffe9c8" distance={10} />
       <GalleryRoom />
       <Suspense fallback={null}>
         <RobotPlayer keys={keys} stick={stick} />
@@ -268,7 +341,6 @@ export default function MuseumDemo({ open, onClose }: MuseumDemoProps) {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Escape') onClose()
       keys.current[e.code] = e.type === 'keydown'
-      // Evitar scroll con flechas/espacio
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
         e.preventDefault()
       }
@@ -292,15 +364,15 @@ export default function MuseumDemo({ open, onClose }: MuseumDemoProps) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[80] flex flex-col bg-ink">
+    <div className="fixed inset-0 z-[80] flex flex-col bg-[#e8e2d6]">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-3 safe-top sm:p-4">
-        <div className="pointer-events-auto rounded-full border border-line/80 bg-ink/70 px-3 py-1.5 text-[10px] tracking-[0.18em] text-muted uppercase backdrop-blur-md sm:text-[11px]">
+        <div className="pointer-events-auto rounded-full border border-black/10 bg-white/75 px-3 py-1.5 text-[10px] tracking-[0.18em] text-stone-700 uppercase backdrop-blur-md sm:text-[11px]">
           Demo museo · conduce a RURAQ
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="pointer-events-auto rounded-full border border-line bg-ink/80 px-4 py-2 text-xs font-medium text-fog backdrop-blur-md transition-colors hover:border-brass hover:text-brass"
+          className="pointer-events-auto rounded-full border border-black/10 bg-white/85 px-4 py-2 text-xs font-medium text-stone-800 backdrop-blur-md transition-colors hover:border-amber-700/40 hover:text-amber-800"
         >
           Cerrar
         </button>
@@ -308,7 +380,7 @@ export default function MuseumDemo({ open, onClose }: MuseumDemoProps) {
 
       {hint && (
         <div className="pointer-events-none absolute inset-x-0 top-16 z-20 flex justify-center px-4 sm:top-20">
-          <p className="max-w-lg rounded-2xl border border-line/70 bg-ink/75 px-4 py-3 text-center text-[12px] leading-relaxed text-fog/90 backdrop-blur-md sm:text-sm">
+          <p className="max-w-lg rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-center text-[12px] leading-relaxed text-stone-700 backdrop-blur-md sm:text-sm">
             {isMobile
               ? 'Joystick: arriba/abajo avanza · izquierda/derecha gira al robot'
               : 'W/S avanzar-retroceder · A/D girar al robot · Esc salir'}
