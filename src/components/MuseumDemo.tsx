@@ -18,8 +18,7 @@ const LOOK_SENS = 0.0022
 const BOUNDS = { x: ROOM.w / 2 - 0.7, z: ROOM.d / 2 - 0.7 }
 
 function useRobot() {
-  // true = decoder Draco (GLB comprimido)
-  const { scene } = useGLTF(ROBOT_MODEL_URL, true)
+  const { scene } = useGLTF(ROBOT_MODEL_URL)
   return useMemo(() => {
     const clone = scene.clone(true)
     clone.traverse((obj) => {

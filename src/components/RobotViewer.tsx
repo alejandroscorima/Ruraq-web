@@ -28,8 +28,7 @@ type TurntableRefs = {
 }
 
 function useRobotModel() {
-  // Segundo arg: decoder Draco para el GLB optimizado
-  const { scene } = useGLTF(MODEL_URL, true)
+  const { scene } = useGLTF(MODEL_URL)
 
   return useMemo(() => {
     const clone = scene.clone(true)
@@ -376,4 +375,4 @@ export default function RobotViewer({ className = '', fillScreen = true }: Robot
   )
 }
 
-useGLTF.preload(MODEL_URL, true)
+useGLTF.preload(MODEL_URL)
