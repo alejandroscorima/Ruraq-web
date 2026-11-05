@@ -163,13 +163,14 @@ export default function App() {
             {/* Márgenes laterales: se puede scrollear fuera del canvas */}
             <div className="mx-auto w-full max-w-6xl px-3 sm:px-5 md:px-8">
               <div
-                className="relative overflow-hidden rounded-2xl border border-line/80 sm:rounded-3xl"
+                className="relative overflow-hidden rounded-2xl border-2 border-[#c8cdd4] sm:rounded-3xl sm:border-[2.5px]"
                 style={{
                   background: `
                     radial-gradient(ellipse 65% 55% at 50% 42%, rgba(42,52,64,0.95), transparent 70%),
                     linear-gradient(165deg, #141a22 0%, #0b0e13 55%, #121820 100%)
                   `,
-                  boxShadow: 'inset 0 1px 0 rgba(201,168,108,0.08), 0 24px 80px rgba(0,0,0,0.35)',
+                  boxShadow:
+                    'inset 0 1px 0 rgba(255,255,255,0.12), 0 0 0 1px rgba(255,255,255,0.06), 0 24px 80px rgba(0,0,0,0.35)',
                 }}
               >
                 <div className="h-[min(52svh,480px)] w-full sm:h-[min(58svh,580px)] md:h-[min(66vh,700px)]">

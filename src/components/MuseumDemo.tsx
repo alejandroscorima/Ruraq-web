@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Center, Resize, Text, useGLTF, useTexture } from '@react-three/drei'
+import { Text, useGLTF, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 import { ROBOT_MODEL_URL } from '../lib/model'
 import VirtualJoystick from './VirtualJoystick'
@@ -87,6 +87,8 @@ const ARTWORKS = [
 useGLTF.preload(ROBOT_MODEL_URL)
 ARTWORKS.forEach((a) => useTexture.preload(a.src))
 
+const ROBOT_TARGET_HEIGHT = 1.55
+
 function useRobot() {
   const { scene } = useGLTF(ROBOT_MODEL_URL)
   return useMemo(() => {
@@ -104,6 +106,19 @@ function useRobot() {
         }
       }
     })
+
+    // Escalar a altura fija y asentar la base exactamente en y=0 (sin Center/Resize).
+    const box0 = new THREE.Box3().setFromObject(clone)
+    const size0 = box0.getSize(new THREE.Vector3())
+    const s = ROBOT_TARGET_HEIGHT / Math.max(size0.y, 0.001)
+    clone.scale.setScalar(s)
+
+    const box = new THREE.Box3().setFromObject(clone)
+    const center = box.getCenter(new THREE.Vector3())
+    clone.position.x -= center.x
+    clone.position.z -= center.z
+    clone.position.y -= box.min.y
+
     return clone
   }, [scene])
 }
@@ -280,14 +295,7 @@ function RobotPlayer({
 
   return (
     <group ref={group} position={[0, 0, 4.5]}>
-      {/* bottom: asienta la base del modelo sobre el piso (y=0) */}
-      <Center bottom>
-        <Resize>
-          <group scale={1.35}>
-            <primitive object={model} />
-          </group>
-        </Resize>
-      </Center>
+      <primitive object={model} />
     </group>
   )
 }
